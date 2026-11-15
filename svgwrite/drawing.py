@@ -83,6 +83,28 @@ class Drawing(SVG, ElementFactory):
         """
         self._stylesheets.append((href, title, alternate, media))
 
+    def deduplicate(self, min_occurrences=2):
+        """ Reuse equivalent graphic groups as shared ``<symbol>``/``<use>``.
+
+        Finds groups with identical drawing content, presentation styles and
+        local transforms, hoists one copy of each repeated group into the
+        ``<defs>`` section as a shared ``<symbol>`` and replaces every other
+        instance in place by a ``<use>`` element. Only self contained groups
+        are merged; groups with external references, scripts or id references
+        that cannot be safely rewritten are left untouched.
+
+        :param int min_occurrences: only groups appearing at least this many
+            times are hoisted (default ``2``)
+        :returns: the drawing itself
+
+        The operation is opt-in and idempotent: calling it again (or calling
+        :meth:`tostring`, :meth:`write` or :meth:`save` afterwards) does not
+        add any further definitions, and drawings never calling this method
+        are serialized unchanged.
+        """
+        from svgwrite.reuse import deduplicate
+        return deduplicate(self, min_occurrences=min_occurrences)
+
     def write(self, fileobj, pretty=False, indent=2):
         """ Write XML string to `fileobj`.
 

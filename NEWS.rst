@@ -2,6 +2,17 @@
 NEWS
 ====
 
+Unreleased
+----------
+
+* NEW: opt-in ``Drawing.deduplicate()`` reuses equivalent self-contained
+  graphic groups as shared ``<symbol>`` definitions referenced by ``<use>``,
+  shrinking drawings (e.g. icon sprites) that embed the same vector paths
+  repeatedly. Only groups with identical drawing content, styles and local
+  transforms are merged; groups with external references, scripts or
+  non-rewritable id references are skipped. The operation is idempotent and
+  leaves drawings that do not call it serialized unchanged.
+
 Version 1.4.3 - 2022-07-14
 --------------------------
 
