@@ -25,6 +25,7 @@ section by::
 """
 import io
 
+from svgwrite.boundingbox import calculate_bounds, fit_to_content
 from svgwrite.container import SVG, Defs
 from svgwrite.elementfactory import ElementFactory
 from svgwrite.utils import pretty_xml
@@ -55,6 +56,39 @@ class Drawing(SVG, ElementFactory):
         super(Drawing, self).__init__(size=size, **extra)
         self.filename = filename
         self._stylesheets = []  # list of stylesheets appended
+
+    def calculate_bounds(self):
+        """ Calculate the visible bounding box of the drawing content.
+
+        Takes nested group transforms and stroke widths into account.
+
+        :returns: :class:`svgwrite.boundingbox.BoundingBox` in root canvas
+          coordinates
+        :raises svgwrite.boundingbox.EmptyDrawingError: for an empty drawing
+        :raises svgwrite.boundingbox.InvalidCoordinateError: for coordinates
+          that are not plain user-space numbers
+        :raises svgwrite.boundingbox.PathParseError: for unparseable paths
+        :raises svgwrite.boundingbox.UnsupportedElementError: for elements
+          without computable geometry such as ``text`` or ``image``
+
+        .. seealso:: :func:`svgwrite.boundingbox.calculate_bounds`
+        """
+        return calculate_bounds(self)
+
+    def fit_to_content(self, margin=0.0):
+        """ Set the *viewBox* so that all visible content fits the canvas.
+
+        :param margin: a single number applied on all four sides or a
+          ``(horizontal, vertical)`` tuple
+        :returns: the margin-adjusted
+          :class:`svgwrite.boundingbox.BoundingBox`
+
+        Only the *viewBox* attribute is updated; the drawing size, the
+        elements and their serialization order are not modified.
+
+        .. seealso:: :func:`svgwrite.boundingbox.fit_to_content`
+        """
+        return fit_to_content(self, margin)
 
     def get_xml(self):
         """ Get the XML representation as `ElementTree` object.

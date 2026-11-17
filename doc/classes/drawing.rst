@@ -31,6 +31,10 @@ Methods
 
 .. automethod:: svgwrite.drawing.Drawing.add_stylesheet
 
+.. automethod:: svgwrite.drawing.Drawing.calculate_bounds
+
+.. automethod:: svgwrite.drawing.Drawing.fit_to_content
+
 .. automethod:: svgwrite.drawing.Drawing.get_xml
 
 .. method:: Drawing.tostring()

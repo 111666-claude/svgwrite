@@ -2,6 +2,18 @@
 NEWS
 ====
 
+Unreleased
+----------
+
+* NEW: automatic content bounding box / viewBox calculation.
+  :meth:`Drawing.fit_to_content` and :func:`svgwrite.calculate_bounds`
+  measure the visible bounds of ``rect``, ``circle``, ``ellipse``,
+  ``line``, ``polyline``, ``polygon`` and ``path`` (M/L/H/V/C/S/Q/T/Z)
+  elements, including nested group transforms and stroke widths.
+  Unsupported elements (``text``, ``image``, ``use``, arc paths ...),
+  unparseable coordinates or paths raise explicit exceptions instead of
+  producing silently wrong bounds.
+
 Version 1.4.3 - 2022-07-14
 --------------------------
 

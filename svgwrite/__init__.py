@@ -52,6 +52,16 @@ CYEAR = '2014-2019'
 
 from svgwrite.drawing import Drawing
 from svgwrite.utils import rgb
+from svgwrite.boundingbox import (
+    BoundingBox,
+    BoundingBoxError,
+    EmptyDrawingError,
+    InvalidCoordinateError,
+    UnsupportedElementError,
+    PathParseError,
+    calculate_bounds,
+    fit_to_content,
+)
 
 
 class Unit(object):
