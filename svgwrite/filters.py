@@ -10,7 +10,7 @@ from svgwrite.base import BaseElement
 from svgwrite.mixins import XLink, Presentation
 from svgwrite.utils import strlist, is_string
 
-__all__ = ['Filter']
+__all__ = ['Filter', 'FilterGraph', 'FilterGraphError']
 
 
 class _feDistantLight(BaseElement):
@@ -271,3 +271,261 @@ class Filter(BaseElement, XLink, Presentation):
             return _FilterBuilder(filter_factory[name], self)
         else:
             raise AttributeError("'%s' has no attribute '%s'" % (self.__class__.__name__, name))
+
+    def graph(self):
+        """
+        Return a :class:`FilterGraph` that builds its primitives into this
+        filter, auto-assigning ``result`` names and ordering the primitives
+        by their dependencies.
+        """
+        return FilterGraph(self)
+
+
+class FilterGraphError(ValueError):
+    """Raised for invalid filter graph construction or build operations."""
+    pass
+
+
+class _GraphNode(object):
+    """
+    A node in a :class:`FilterGraph`, wrapping one filter primitive element.
+
+    Use the node wherever an input reference is expected; it resolves to the
+    node's (auto-assigned) ``result`` name.
+    """
+    def __init__(self, graph, element, dependencies):
+        self.graph = graph
+        self.element = element
+        self.dependencies = dependencies
+
+    @property
+    def result(self):
+        return self.element['result']
+
+    def __str__(self):
+        return self.result
+
+    def __repr__(self):
+        return "<%s %s result='%s'>" % (self.__class__.__name__,
+                                        self.element.elementname,
+                                        self.result)
+
+
+class _GraphBuilder(object):
+    def __init__(self, cls, graph):
+        self.cls = cls # primitive filter class to build
+        self.graph = graph # the parent FilterGraph() object
+
+    def __call__(self, *args, **kwargs):
+        return self.graph._add_node(self.cls, args, kwargs)
+
+
+class FilterGraph(object):
+    """
+    Dependency-aware builder for SVG filter graphs.
+
+    Create nodes with the same factory methods as :class:`Filter`
+    (``feGaussianBlur``, ``feOffset``, ``feComposite``, ``feMerge``, ...).
+    Inputs (``in_``, ``in2``, merge layer names) accept previously created
+    nodes, their ``result`` names, or the well-known inputs
+    (``SourceGraphic``, ``SourceAlpha``, ...). Every node gets a stable
+    auto-assigned ``result`` name (``n1``, ``n2``, ...) unless an explicit
+    ``result`` is given. :meth:`build` emits the primitives into a
+    :class:`Filter` in a valid (topological) order.
+
+    The classic drop-shadow example::
+
+        graph = dwg.defs.add(dwg.filter()).graph()
+        blur = graph.feGaussianBlur('SourceAlpha', stdDeviation=2)
+        offset = graph.feOffset(blur, dx=4, dy=4)
+        graph.feMerge([offset, 'SourceGraphic'])
+        shadow_filter = graph.build()
+    """
+
+    #: well-known filter inputs defined by the SVG specification
+    WELL_KNOWN_INPUTS = frozenset([
+        'SourceGraphic', 'SourceAlpha', 'BackgroundImage',
+        'BackgroundAlpha', 'FillPaint', 'StrokePaint',
+    ])
+
+    def __init__(self, filter_element=None):
+        """
+        :param filter_element: optional :class:`Filter` the graph builds into;
+            if omitted, :meth:`build` creates a new one.
+        """
+        self._filter = filter_element
+        self._nodes = [] # _GraphNode objects in creation order
+        self._names = {} # result name -> _GraphNode
+        self._counter = 0
+        self._built = False
+
+    def __getattr__(self, name):
+        # create graph nodes by FilterGraph.<filtername>(...)
+        if name in filter_factory:
+            return _GraphBuilder(filter_factory[name], self)
+        else:
+            raise AttributeError("'%s' has no attribute '%s'" % (self.__class__.__name__, name))
+
+    def __len__(self):
+        return len(self._nodes)
+
+    def __iter__(self):
+        return iter(self._nodes)
+
+    def _auto_name(self):
+        while True:
+            self._counter += 1
+            name = 'n%d' % self._counter
+            if name not in self._names:
+                return name
+
+    def _resolve_input(self, value):
+        """
+        Resolve an input reference to a result name.
+
+        Returns a 2-tuple (name, dependencies) where dependencies is a list
+        of referenced :class:`_GraphNode` objects.
+        """
+        if isinstance(value, _GraphNode):
+            if value.graph is not self:
+                raise FilterGraphError(
+                    "cross-filter reference: node %r belongs to a different "
+                    "filter graph" % value.result)
+            return value.result, [value]
+        if is_string(value):
+            if value in self.WELL_KNOWN_INPUTS:
+                return value, []
+            node = self._names.get(value)
+            if node is not None:
+                return value, [node]
+            raise FilterGraphError(
+                "missing input '%s': not a well-known filter input and no "
+                "node with this result name exists in the graph" % value)
+        raise FilterGraphError(
+            "invalid filter input %r: expected a graph node or a result "
+            "name" % (value,))
+
+    def _add_node(self, cls, args, kwargs):
+        args = list(args)
+        kwargs = dict(kwargs)
+        dependencies = []
+
+        if issubclass(cls, _FilterRequireInput):
+            if args:
+                in_ = args.pop(0)
+            else:
+                in_ = kwargs.pop('in_', 'SourceGraphic')
+            resolved, deps = self._resolve_input(in_)
+            kwargs['in_'] = resolved
+            dependencies.extend(deps)
+
+        if 'in2' in kwargs:
+            resolved, deps = self._resolve_input(kwargs['in2'])
+            kwargs['in2'] = resolved
+            dependencies.extend(deps)
+
+        if cls is _feMerge:
+            if args:
+                layernames = args.pop(0)
+            else:
+                layernames = kwargs.pop('layernames', [])
+            resolved_layers = []
+            for layername in layernames:
+                resolved, deps = self._resolve_input(layername)
+                resolved_layers.append(resolved)
+                dependencies.extend(deps)
+            args.insert(0, resolved_layers)
+
+        result = kwargs.pop('result', None)
+        if result is None:
+            result = self._auto_name()
+        else:
+            if not is_string(result):
+                raise FilterGraphError(
+                    "invalid result name %r: expected a string" % (result,))
+            if result in self.WELL_KNOWN_INPUTS:
+                raise FilterGraphError(
+                    "result name '%s' is a reserved well-known filter "
+                    "input" % result)
+            if result in self._names:
+                raise FilterGraphError(
+                    "duplicate result name '%s' in filter graph" % result)
+        kwargs['result'] = result
+
+        if self._filter is not None:
+            kwargs['factory'] = self._filter # to get the _parameter object
+        element = cls(*args, **kwargs)
+        node = _GraphNode(self, element, dependencies)
+        self._nodes.append(node)
+        self._names[result] = node
+        return node
+
+    def _collect_dependencies(self, node):
+        """
+        Re-read the input references of a node's element, so references
+        changed by hand after node creation are honored by :meth:`build`.
+        """
+        element = node.element
+        references = []
+        for attr in ('in', 'in2'):
+            if attr in element.attribs:
+                references.append(element.attribs[attr])
+        for subelement in element.elements: # e.g. feMergeNode
+            if 'in' in subelement.attribs:
+                references.append(subelement.attribs['in'])
+
+        dependencies = []
+        for reference in references:
+            if reference in self.WELL_KNOWN_INPUTS:
+                continue
+            dependency = self._names.get(reference)
+            if dependency is None:
+                raise FilterGraphError(
+                    "missing input '%s' referenced by node '%s': no node "
+                    "with this result name exists in the graph"
+                    % (reference, node.result))
+            dependencies.append(dependency)
+        return dependencies
+
+    def _sorted_nodes(self):
+        # Kahn's algorithm, stable by creation order
+        dependencies = dict(
+            (node, self._collect_dependencies(node)) for node in self._nodes)
+        dependents = dict((node, []) for node in self._nodes)
+        for node, deps in dependencies.items():
+            for dep in deps:
+                dependents[dep].append(node)
+        ready = [node for node in self._nodes if not dependencies[node]]
+        ordered = []
+        while ready:
+            node = ready.pop(0)
+            ordered.append(node)
+            for dependent in dependents[node]:
+                dependencies[dependent].remove(node)
+                if not dependencies[dependent]:
+                    ready.append(dependent)
+        if len(ordered) != len(self._nodes):
+            cyclic = [node.result for node in self._nodes
+                      if dependencies[node]]
+            raise FilterGraphError(
+                "cyclic dependency in filter graph involving: %s"
+                % ', '.join(cyclic))
+        return ordered
+
+    def build(self, filter_element=None):
+        """
+        Add the graph's primitives to a :class:`Filter` in a valid
+        dependency order and return the filter.
+
+        :param filter_element: target filter; defaults to the filter the
+            graph was created with, or a new :class:`Filter`.
+        """
+        if self._built:
+            raise FilterGraphError("filter graph was already built")
+        if not self._nodes:
+            raise FilterGraphError("cannot build an empty filter graph")
+        target = filter_element or self._filter or Filter()
+        for node in self._sorted_nodes():
+            target.add(node.element)
+        self._built = True
+        return target
