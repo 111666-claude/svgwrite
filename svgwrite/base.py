@@ -204,6 +204,13 @@ class BaseElement(object):
         :return: XML `ElementTree` of this object and all its subelements
 
         """
+        # promote local presentation attributes that collide with an
+        # attached StyleRegistry class into the inline 'style' attribute,
+        # so explicit local values keep overriding class styles
+        if getattr(self, '_style_registries', None):
+            from svgwrite.styling import sync_inline_styles
+            sync_inline_styles(self)
+
         xml = etree.Element(self.elementname)
         if self.debug:
             self.validator.check_all_svg_attribute_values(self.elementname, self.attribs)

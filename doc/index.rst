@@ -46,6 +46,7 @@ or (german) http://www.selfsvg.info .
    classes/hyperlink
    classes/script
    classes/style
+   classes/styling
 
 .. toctree::
    :maxdepth: 1

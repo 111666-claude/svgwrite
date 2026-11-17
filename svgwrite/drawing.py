@@ -55,6 +55,19 @@ class Drawing(SVG, ElementFactory):
         super(Drawing, self).__init__(size=size, **extra)
         self.filename = filename
         self._stylesheets = []  # list of stylesheets appended
+        self._style_registry = None
+
+    @property
+    def style_registry(self):
+        """ The drawing's :class:`svgwrite.styling.StyleRegistry`.
+
+        Created lazily on first access with the drawing's profile and debug
+        setting; an unused registry leaves the drawing output unchanged.
+        """
+        if self._style_registry is None:
+            from svgwrite.styling import StyleRegistry
+            self._style_registry = StyleRegistry(self)
+        return self._style_registry
 
     def get_xml(self):
         """ Get the XML representation as `ElementTree` object.

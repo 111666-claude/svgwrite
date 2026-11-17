@@ -2,6 +2,16 @@
 NEWS
 ====
 
+Unreleased
+----------
+
+* NEW: :class:`svgwrite.StyleRegistry` (``svgwrite.styling``) registers
+  presentation attributes as reusable CSS classes inside the drawing's
+  ``<defs>`` section. Equivalent styles share one rule and one stable class
+  name; explicit local attributes are promoted to inline styles so they keep
+  overriding class rules. Accessible per drawing via
+  :attr:`svgwrite.Drawing.style_registry`.
+
 Version 1.4.3 - 2022-07-14
 --------------------------
 
