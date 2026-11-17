@@ -51,6 +51,7 @@ CYEAR = '2014-2019'
 
 
 from svgwrite.drawing import Drawing
+from svgwrite.symbolregistry import SymbolRegistry
 from svgwrite.utils import rgb
 
 
