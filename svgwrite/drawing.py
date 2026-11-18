@@ -138,3 +138,41 @@ class Drawing(SVG, ElementFactory):
 
         """
         return self.tostring()
+
+    def check_gradient_inheritance(self):
+        """ Validate the **xlink:href** inheritance chains of all linear and
+        radial gradients inside the drawing.
+
+        Checks for duplicate ids, missing reference ids, references to
+        non-gradient elements, cross type inheritance, reference cycles,
+        empty stop lists and invalid stop offsets. The drawing itself is not
+        modified.
+
+        :raises svgwrite.gradientinheritance.GradientInheritanceError:
+          on the first problem found
+        :returns: list of
+          :class:`~svgwrite.gradientinheritance.GradientInfo` objects with the
+          effective stops, geometry, coordinate system and transform of every
+          gradient (document order)
+        """
+        from svgwrite.gradientinheritance import GradientInheritance
+        return GradientInheritance(self).validate()
+
+    def expand_gradient_inheritance(self):
+        """ Expand gradient **xlink:href** chains into self contained
+        gradients.
+
+        Every gradient keeps its id but loses its reference; inherited stops,
+        geometry, coordinate system, spread method and transform are
+        materialized, with local attributes taking precedence. The original
+        gradient objects remain valid and serializable and the resulting
+        drawing contains closed references only.
+
+        :raises svgwrite.gradientinheritance.GradientInheritanceError:
+          if the inheritance graph does not validate
+        :returns: list of
+          :class:`~svgwrite.gradientinheritance.GradientInfo` objects of the
+          expanded gradients (document order)
+        """
+        from svgwrite.gradientinheritance import GradientInheritance
+        return GradientInheritance(self).expand()

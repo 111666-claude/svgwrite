@@ -68,6 +68,7 @@ or (german) http://www.selfsvg.info .
    :caption: Paint server
 
    classes/gradients
+   classes/gradient_inheritance
    classes/pattern
    classes/solidcolor
 

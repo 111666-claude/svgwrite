@@ -2,6 +2,21 @@
 NEWS
 ====
 
+Next
+----
+
+* NEW: gradient inheritance support -- validate or expand the
+  ``xlink:href`` chains of linear/radial gradients. The new
+  :mod:`svgwrite.gradientinheritance` module resolves the effective stops,
+  geometry, coordinate system and transform of every gradient
+  (:class:`~svgwrite.gradientinheritance.GradientInheritance`), and the
+  :class:`~svgwrite.drawing.Drawing` gained the
+  :meth:`~svgwrite.drawing.Drawing.check_gradient_inheritance` and
+  :meth:`~svgwrite.drawing.Drawing.expand_gradient_inheritance` methods.
+  Cycles, missing or duplicate ids, cross type inheritance, empty stops and
+  invalid stop offsets raise
+  :class:`~svgwrite.gradientinheritance.GradientInheritanceError`.
+
 Version 1.4.3 - 2022-07-14
 --------------------------
 

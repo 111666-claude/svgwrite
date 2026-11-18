@@ -52,6 +52,11 @@ CYEAR = '2014-2019'
 
 from svgwrite.drawing import Drawing
 from svgwrite.utils import rgb
+from svgwrite.gradientinheritance import (
+    GradientInheritance,
+    GradientInheritanceError,
+    GradientInfo,
+)
 
 
 class Unit(object):
