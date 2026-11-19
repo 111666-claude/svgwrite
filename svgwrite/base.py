@@ -13,11 +13,12 @@ from svgwrite.etree import etree
 
 import copy
 
+from svgwrite.accessibility import Accessibility
 from svgwrite.params import Parameter
 from svgwrite.utils import AutoID
 
 
-class BaseElement(object):
+class BaseElement(Accessibility):
     """
     The **BaseElement** is the root for all SVG elements. The SVG attributes
     are stored in **attribs**, and the SVG subelements are stored in

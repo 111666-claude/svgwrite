@@ -13,6 +13,15 @@ from svgwrite.data import pattern
 validator_cache = {}
 
 
+def is_aria_attribute(attributename):
+    """ True if 'attributename' is a WAI-ARIA attribute (``aria-*`` or
+    ``role``).  ARIA attributes are allowed on every SVG element and are
+    not part of the SVG profile attribute lists, so they are validated as
+    plain strings only.
+    """
+    return attributename == 'role' or attributename.startswith('aria-')
+
+
 def cache_key(profile, debug):
     return str(profile) + str(debug)
 
@@ -58,6 +67,11 @@ class Tiny12Validator(object):
 
         Raises ValueError.
         """
+        if is_aria_attribute(attributename):
+            # WAI-ARIA attributes are valid on every element, values are
+            # plain strings (token lists for aria-labelledby/aria-describedby)
+            self.check_svg_type(str(value), 'string')
+            return
         self._check_valid_svg_attribute_name(elementname, attributename)
         self._check_svg_value(elementname, attributename, value)
 
@@ -115,6 +129,8 @@ class Tiny12Validator(object):
         """ True if 'attributename' is a valid svg-attribute for svg-element
         'elementname'.
         """
+        if is_aria_attribute(attributename):
+            return True
         element = self._get_element(elementname)
         return attributename in element.valid_attributes
 
